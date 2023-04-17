@@ -1,6 +1,7 @@
 #include "vmlinux.h"
 #include "bpf_helpers.h"
-#include "helper.h"
+#include "bpf_core_read.h"
+// #include "helper.h"
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
@@ -38,8 +39,8 @@ int tracepoint_openat(struct trace_event_raw_sys_enter *ctx)
     bpf_get_current_comm(e->comm, sizeof(e->comm));
 
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    e->tgid = READ_KERN(task->tgid);
-    e->ppid = READ_KERN(READ_KERN(task->real_parent)->pid);
+    e->tgid = BPF_CORE_READ(task, tgid);
+    e->ppid = BPF_CORE_READ(task, real_parent, pid);
 
     bpf_probe_read_user_str(&e->filename, sizeof(e->filename), (char *)(ctx->args[1]));
 

@@ -16,3 +16,4 @@
 
 jebpf
 .vscode
+vmlinux.h
