@@ -25,3 +25,14 @@
 #define TCP_EVENT_CONNECT 1
 #define TCP_EVENT_ACCEPT 2
 #define TCP_EVENT_CLOSE 3
+
+struct net_tcp_event
+{
+    u32 pid;
+    u16 event;
+    u32 saddr;
+    u32 daddr;
+    u16 sport;
+    u16 dport;
+    u8 comm[16];
+};

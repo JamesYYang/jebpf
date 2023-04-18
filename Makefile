@@ -1,9 +1,9 @@
-CLANG ?= clang-10
+CLANG ?= clang
 CFLAGS := '-O2 -g -Wall -Werror $(CFLAGS)'
-TARGETS ?= bpfel,bpfeb
+TARGETS ?= amd64
 HEADERS ?= ./ebpf/headers
 
-all: probe-hello probe-openat build
+all: probe-hello probe-openat probe-tcpstate probe-tcpretrans build
 
 probe-hello: export GOPACKAGE=hello
 probe-hello:
@@ -19,6 +19,11 @@ probe-tcpstate: export GOPACKAGE=tcpstate
 probe-tcpstate:
 	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem tcpstate -type net_tcp_event bpf ./ebpf/tcp_connect.bpf.c -- -I $(HEADERS) 
 	mv tcpstate_*.* ./probes/tcpstate
+
+probe-tcpretrans: export GOPACKAGE=tcpretrans
+probe-tcpretrans:
+	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem tcpretrans -type net_tcp_event bpf ./ebpf/tcp_retrans.bpf.c -- -I $(HEADERS) 
+	mv tcpretrans_*.* ./probes/tcpretrans
 
 build:
 	go build -o jebpf

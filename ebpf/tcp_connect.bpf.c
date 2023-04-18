@@ -5,17 +5,6 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
-struct net_tcp_event
-{
-    u32 pid;
-    u16 event;
-    u32 saddr;
-    u32 daddr;
-    u16 sport;
-    u16 dport;
-    u8 comm[16];
-};
-
 /* BPF ringbuf map */
 struct
 {
