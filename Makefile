@@ -25,6 +25,11 @@ probe-tcpretrans:
 	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem tcpretrans -type net_tcp_event bpf ./ebpf/tcp_retrans.bpf.c -- -I $(HEADERS) 
 	mv tcpretrans_*.* ./probes/tcpretrans
 
+probe-tcpreset: export GOPACKAGE=tcpreset
+probe-tcpreset:
+	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem tcpreset -type net_tcp_event bpf ./ebpf/tcp_reset.bpf.c -- -I $(HEADERS) 
+	mv tcpreset_*.* ./probes/tcpreset
+
 build:
 	go build -o jebpf
 
