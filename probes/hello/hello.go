@@ -9,7 +9,7 @@ import (
 
 type Hello_Probe struct {
 	name string
-	bpf  *bpfObjects
+	bpf  *kpHelloObjects
 	link link.Link
 }
 
@@ -25,8 +25,8 @@ func (p *Hello_Probe) Name() string {
 
 func (p *Hello_Probe) Start() {
 
-	objs := bpfObjects{}
-	if err := loadBpfObjects(&objs, nil); err != nil {
+	objs := kpHelloObjects{}
+	if err := loadKpHelloObjects(&objs, nil); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}
 	p.bpf = &objs

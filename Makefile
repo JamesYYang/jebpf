@@ -1,4 +1,4 @@
-CLANG ?= clang
+CLANG ?= clang-12
 CFLAGS := '-O2 -g -Wall -Werror $(CFLAGS)'
 TARGETS ?= amd64
 HEADERS ?= ./ebpf/headers
@@ -7,7 +7,7 @@ all: probe-hello probe-openat probe-tcpstate probe-tcpretrans build
 
 probe-hello: export GOPACKAGE=hello
 probe-hello:
-	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem hello bpf ./ebpf/hello.bpf.c -- -I $(HEADERS) 
+	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem hello kpHello ./ebpf/hello.bpf.c -- -I $(HEADERS) 
 	mv hello_*.* ./probes/hello
 
 probe-openat: export GOPACKAGE=openat

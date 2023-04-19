@@ -13,28 +13,28 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-// loadBpf returns the embedded CollectionSpec for bpf.
-func loadBpf() (*ebpf.CollectionSpec, error) {
-	reader := bytes.NewReader(_BpfBytes)
+// loadKpHello returns the embedded CollectionSpec for kpHello.
+func loadKpHello() (*ebpf.CollectionSpec, error) {
+	reader := bytes.NewReader(_KpHelloBytes)
 	spec, err := ebpf.LoadCollectionSpecFromReader(reader)
 	if err != nil {
-		return nil, fmt.Errorf("can't load bpf: %w", err)
+		return nil, fmt.Errorf("can't load kpHello: %w", err)
 	}
 
 	return spec, err
 }
 
-// loadBpfObjects loads bpf and converts it into a struct.
+// loadKpHelloObjects loads kpHello and converts it into a struct.
 //
 // The following types are suitable as obj argument:
 //
-//	*bpfObjects
-//	*bpfPrograms
-//	*bpfMaps
+//	*kpHelloObjects
+//	*kpHelloPrograms
+//	*kpHelloMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadBpfObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
-	spec, err := loadBpf()
+func loadKpHelloObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+	spec, err := loadKpHello()
 	if err != nil {
 		return err
 	}
@@ -42,66 +42,66 @@ func loadBpfObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
 	return spec.LoadAndAssign(obj, opts)
 }
 
-// bpfSpecs contains maps and programs before they are loaded into the kernel.
+// kpHelloSpecs contains maps and programs before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
-type bpfSpecs struct {
-	bpfProgramSpecs
-	bpfMapSpecs
+type kpHelloSpecs struct {
+	kpHelloProgramSpecs
+	kpHelloMapSpecs
 }
 
-// bpfSpecs contains programs before they are loaded into the kernel.
+// kpHelloSpecs contains programs before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
-type bpfProgramSpecs struct {
+type kpHelloProgramSpecs struct {
 	HandleTp *ebpf.ProgramSpec `ebpf:"handle_tp"`
 }
 
-// bpfMapSpecs contains maps before they are loaded into the kernel.
+// kpHelloMapSpecs contains maps before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
-type bpfMapSpecs struct {
+type kpHelloMapSpecs struct {
 }
 
-// bpfObjects contains all objects after they have been loaded into the kernel.
+// kpHelloObjects contains all objects after they have been loaded into the kernel.
 //
-// It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
-type bpfObjects struct {
-	bpfPrograms
-	bpfMaps
+// It can be passed to loadKpHelloObjects or ebpf.CollectionSpec.LoadAndAssign.
+type kpHelloObjects struct {
+	kpHelloPrograms
+	kpHelloMaps
 }
 
-func (o *bpfObjects) Close() error {
-	return _BpfClose(
-		&o.bpfPrograms,
-		&o.bpfMaps,
+func (o *kpHelloObjects) Close() error {
+	return _KpHelloClose(
+		&o.kpHelloPrograms,
+		&o.kpHelloMaps,
 	)
 }
 
-// bpfMaps contains all maps after they have been loaded into the kernel.
+// kpHelloMaps contains all maps after they have been loaded into the kernel.
 //
-// It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
-type bpfMaps struct {
+// It can be passed to loadKpHelloObjects or ebpf.CollectionSpec.LoadAndAssign.
+type kpHelloMaps struct {
 }
 
-func (m *bpfMaps) Close() error {
-	return _BpfClose()
+func (m *kpHelloMaps) Close() error {
+	return _KpHelloClose()
 }
 
-// bpfPrograms contains all programs after they have been loaded into the kernel.
+// kpHelloPrograms contains all programs after they have been loaded into the kernel.
 //
-// It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
-type bpfPrograms struct {
+// It can be passed to loadKpHelloObjects or ebpf.CollectionSpec.LoadAndAssign.
+type kpHelloPrograms struct {
 	HandleTp *ebpf.Program `ebpf:"handle_tp"`
 }
 
-func (p *bpfPrograms) Close() error {
-	return _BpfClose(
+func (p *kpHelloPrograms) Close() error {
+	return _KpHelloClose(
 		p.HandleTp,
 	)
 }
 
-func _BpfClose(closers ...io.Closer) error {
+func _KpHelloClose(closers ...io.Closer) error {
 	for _, closer := range closers {
 		if err := closer.Close(); err != nil {
 			return err
@@ -113,4 +113,4 @@ func _BpfClose(closers ...io.Closer) error {
 // Do not access this directly.
 //
 //go:embed hello_bpfel_x86.o
-var _BpfBytes []byte
+var _KpHelloBytes []byte
