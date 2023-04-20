@@ -26,6 +26,14 @@
 #define TCP_EVENT_ACCEPT 2
 #define TCP_EVENT_CLOSE 3
 
+#define TC_ACT_UNSPEC (-1)
+#define TC_ACT_OK 0
+#define TC_ACT_SHOT 2
+#define TC_ACT_STOLEN 4
+#define TC_ACT_REDIRECT 7
+
+#define ETH_P_IP 0x0800 /* Internet Protocol packet        */
+
 struct net_tcp_event
 {
     u32 pid;

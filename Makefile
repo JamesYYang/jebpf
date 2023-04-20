@@ -3,7 +3,7 @@ CFLAGS := '-O2 -g -Wall -Werror $(CFLAGS)'
 TARGETS ?= amd64
 HEADERS ?= ./ebpf/headers
 
-all: probe-hello probe-openat probe-tcpstate probe-tcpretrans build
+all: probe-hello probe-openat probe-tcpstate probe-tcpretrans probe-tccapture build
 
 probe-hello: export GOPACKAGE=hello
 probe-hello:
@@ -29,6 +29,11 @@ probe-tcpreset: export GOPACKAGE=tcpreset
 probe-tcpreset:
 	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem tcpreset -type net_tcp_event bpf ./ebpf/tcp_reset.bpf.c -- -I $(HEADERS) 
 	mv tcpreset_*.* ./probes/tcpreset
+
+probe-tccapture: export GOPACKAGE=tccapture
+probe-tccapture:
+	bpf2go -cc $(CLANG) -cflags $(CFLAGS) -target $(TARGETS) -output-stem tccapture -type net_packet_event tccapture ./ebpf/tc_capture.bpf.c -- -I $(HEADERS) 
+	mv tccapture_*.* ./probes/tccapture
 
 build:
 	go build -o jebpf
