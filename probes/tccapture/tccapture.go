@@ -24,11 +24,12 @@ const (
 )
 
 type TcCapture_Probe struct {
-	name    string
-	bpf     *tccaptureObjects
-	netLink *tc.Tc
-	tcObj   *tc.Object
-	reader  *ringbuf.Reader
+	name         string
+	bpf          *tccaptureObjects
+	netLink      *tc.Tc
+	tcIngressObj *tc.Object
+	tcEgressObj  *tc.Object
+	reader       *ringbuf.Reader
 }
 
 func init() {
@@ -43,6 +44,14 @@ func (p *TcCapture_Probe) Name() string {
 	return p.name
 }
 
+// Cilium Attach TC
+// https://github.com/cilium/cilium/blob/master/pkg/datapath/loader/netlink.go#L165
+
+//show filter
+//tc filter show dev eth0 ingress(egress)
+// customize deleteed TC filter
+// tc filter del dev eth0 ingress(egress)
+
 func (p *TcCapture_Probe) Start() {
 
 	objs := tccaptureObjects{}
@@ -52,66 +61,15 @@ func (p *TcCapture_Probe) Start() {
 	p.bpf = &objs
 
 	_, ifIndex := probes.GetLocalIP()
-
-	netLink, err := tc.Open(&tc.Config{})
-	if err != nil {
-		log.Fatalf("opening tc failed: %s", err)
-	}
-
-	// Create a Qdisc for the provided interface
-	qdisc := &tc.Object{
-		Msg: tc.Msg{
-			Family:  unix.AF_UNSPEC,
-			Ifindex: uint32(ifIndex),
-			Handle:  core.BuildHandle(tc.HandleRoot, 0x0000),
-			Parent:  tc.HandleIngress,
-			Info:    0,
-		},
-		Attribute: tc.Attribute{
-			Kind: "clsact",
-		},
-	}
-
-	// Add the Qdisc
-	err = netLink.Qdisc().Add(qdisc)
-	if err != nil {
-		if err.Error() != "netlink receive: file exists" {
-			log.Fatalf("add qdisc failed: %s", err)
-		}
-	}
+	p.createNetLink(ifIndex)
 
 	sec := "classifier/ingress"
+	fd := objs.tccapturePrograms.IngressClsFunc.FD()
+	p.tcIngressObj = p.attachTC(ifIndex, fd, sec, Ingress)
 
-	// Create qdisc filter
-	fd := uint32(objs.tccapturePrograms.IngressClsFunc.FD())
-	flag := uint32(1)
-	filter := tc.Object{
-		Msg: tc.Msg{
-			Family:  unix.AF_UNSPEC,
-			Ifindex: uint32(ifIndex),
-			Handle:  0,
-			Parent:  core.BuildHandle(tc.HandleRoot, uint32(Ingress)),
-			Info:    0x300,
-		},
-		Attribute: tc.Attribute{
-			Kind: "bpf",
-			BPF: &tc.Bpf{
-				FD:    &fd,
-				Name:  &sec,
-				Flags: &flag,
-			},
-		},
-	}
-
-	// Add qdisc filter
-	err = netLink.Filter().Add(&filter)
-	if err != nil {
-		log.Fatalf("add filter to net interface failed: %s", err)
-
-	}
-
-	p.netLink = netLink
-	p.tcObj = qdisc
+	sec = "classifier/egress"
+	fd = objs.tccapturePrograms.EgressClsFunc.FD()
+	p.tcEgressObj = p.attachTC(ifIndex, fd, sec, Egress)
 
 	rd, err := ringbuf.NewReader(objs.TcCaptureEvents)
 	if err != nil {
@@ -161,9 +119,75 @@ func (p *TcCapture_Probe) Start() {
 
 }
 
+func (p *TcCapture_Probe) createNetLink(ifIndex int) {
+
+	netLink, err := tc.Open(&tc.Config{})
+	if err != nil {
+		log.Fatalf("opening tc failed: %s", err)
+	}
+	p.netLink = netLink
+
+}
+
+func (p *TcCapture_Probe) attachTC(ifIndex int, fd int, sec string, trafficType TrafficType) *tc.Object {
+	// Create a Qdisc for the provided interface
+	qdisc := &tc.Object{
+		Msg: tc.Msg{
+			Family:  unix.AF_UNSPEC,
+			Ifindex: uint32(ifIndex),
+			Handle:  core.BuildHandle(tc.HandleRoot, 0x0000),
+			Parent:  tc.HandleIngress,
+			Info:    0,
+		},
+		Attribute: tc.Attribute{
+			Kind: "clsact",
+		},
+	}
+
+	// Add the Qdisc
+	err := p.netLink.Qdisc().Add(qdisc)
+	if err != nil {
+		if err.Error() != "netlink receive: file exists" {
+			log.Fatalf("add qdisc failed: %s", err)
+		}
+	}
+
+	// Create qdisc filter
+	pfd := uint32(fd)
+	flag := uint32(1)
+	filter := tc.Object{
+		Msg: tc.Msg{
+			Family:  unix.AF_UNSPEC,
+			Ifindex: uint32(ifIndex),
+			Handle:  0,
+			Parent:  core.BuildHandle(tc.HandleRoot, uint32(trafficType)),
+			Info:    0x300,
+		},
+		Attribute: tc.Attribute{
+			Kind: "bpf",
+			BPF: &tc.Bpf{
+				FD:    &pfd,
+				Name:  &sec,
+				Flags: &flag,
+			},
+		},
+	}
+
+	// Add qdisc filter
+	err = p.netLink.Filter().Add(&filter)
+	if err != nil {
+		log.Fatalf("add filter to net interface failed: %s", err)
+
+	}
+
+	return qdisc
+}
+
 func (p *TcCapture_Probe) Stop() {
 	p.bpf.Close()
-	p.netLink.Qdisc().Delete(p.tcObj)
+	p.netLink.Qdisc().Delete(p.tcIngressObj)
+	p.netLink.Qdisc().Delete(p.tcEgressObj)
+	p.netLink.Close()
 	p.reader.Close()
 }
 

@@ -34,6 +34,12 @@
 
 #define ETH_P_IP 0x0800 /* Internet Protocol packet        */
 
+#define ETH_HLEN sizeof(struct ethhdr)
+#define IP_HLEN sizeof(struct iphdr)
+#define UDP_HLEN sizeof(struct udphdr)
+#define DNS_HLEN sizeof(struct dns_hdr)
+#define ctx_ptr(field) (void *)(long)(field)
+
 struct net_tcp_event
 {
     u32 pid;
