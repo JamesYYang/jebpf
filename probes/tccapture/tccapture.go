@@ -43,8 +43,8 @@ func (p *TcCapture_Probe) Name() string {
 
 //show filter
 //tc filter show dev eth0 ingress(egress)
-// customize deleteed TC filter
-// tc filter del dev eth0 ingress(egress)
+//customize deleteed TC filter
+//tc filter del dev eth0 ingress(egress)
 
 func (p *TcCapture_Probe) Start() {
 

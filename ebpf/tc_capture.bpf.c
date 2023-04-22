@@ -30,7 +30,6 @@ const struct net_packet_event *unused __attribute__((unused));
 // https://github.com/aquasecurity/tracee/blob/main/pkg/ebpf/c/tracee.bpf.c#L6060
 static inline int capture_packets(struct __sk_buff *skb, u16 is_ingress)
 {
-
     // packet data
     void *data_end = ctx_ptr(skb->data_end);
     void *data_start = ctx_ptr(skb->data);

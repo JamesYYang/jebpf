@@ -1,6 +1,5 @@
 CLANG ?= clang-12
-#CFLAGS := '-O2 -g -Wall -Werror -c $(CFLAGS)'
-CFLAGS := '-O2 -g -c $(CFLAGS)'
+CFLAGS := '-O2 -g -Wall -Werror $(CFLAGS)'
 TARGETS ?= bpf
 HEADERS ?= ./ebpf/headers
 
