@@ -4,32 +4,26 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
+	"math"
 	"net"
 
 	"github.com/JamesYYang/jebpf/probes"
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/ringbuf"
-	"github.com/florianl/go-tc"
-	"github.com/florianl/go-tc/core"
+	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 
 var tcType = make(map[int]string)
 
-type TrafficType uint32
-
-const (
-	Ingress = TrafficType(tc.HandleMinIngress)
-	Egress  = TrafficType(tc.HandleMinEgress)
-)
-
 type TcCapture_Probe struct {
-	name         string
-	bpf          *tccaptureObjects
-	netLink      *tc.Tc
-	tcIngressObj *tc.Object
-	tcEgressObj  *tc.Object
-	reader       *ringbuf.Reader
+	name           string
+	bpf            *tccaptureObjects
+	ingressFileter *netlink.BpfFilter
+	egressFileter  *netlink.BpfFilter
+	reader         *ringbuf.Reader
 }
 
 func init() {
@@ -55,21 +49,37 @@ func (p *TcCapture_Probe) Name() string {
 func (p *TcCapture_Probe) Start() {
 
 	objs := tccaptureObjects{}
-	if err := loadTccaptureObjects(&objs, nil); err != nil {
+
+	if err := loadTccaptureObjects(&objs, &ebpf.CollectionOptions{
+		Programs: ebpf.ProgramOptions{
+			LogLevel: ebpf.LogLevelInstruction,
+			LogSize:  math.MaxUint32 >> 2,
+		},
+	}); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}
 	p.bpf = &objs
 
-	_, ifIndex := probes.GetLocalIP()
-	p.createNetLink(ifIndex)
+	_, ifIndex, _ := probes.GetLocalIP()
+
+	link, err := netlink.LinkByIndex(ifIndex)
+	if err != nil {
+		log.Fatalf("create net link failed: %v", err)
+	}
 
 	sec := "classifier/ingress"
-	fd := objs.tccapturePrograms.IngressClsFunc.FD()
-	p.tcIngressObj = p.attachTC(ifIndex, fd, sec, Ingress)
+	inf, err := p.attachTC(link, objs.IngressClsFunc, sec, netlink.HANDLE_MIN_INGRESS)
+	if err != nil {
+		log.Fatalf("attach tc ingress failed, %v", err)
+	}
+	p.ingressFileter = inf
 
 	sec = "classifier/egress"
-	fd = objs.tccapturePrograms.EgressClsFunc.FD()
-	p.tcEgressObj = p.attachTC(ifIndex, fd, sec, Egress)
+	ef, err := p.attachTC(link, objs.EgressClsFunc, sec, netlink.HANDLE_MIN_EGRESS)
+	if err != nil {
+		log.Fatalf("attach tc egress failed, %v", err)
+	}
+	p.egressFileter = ef
 
 	rd, err := ringbuf.NewReader(objs.TcCaptureEvents)
 	if err != nil {
@@ -79,7 +89,7 @@ func (p *TcCapture_Probe) Start() {
 
 	log.Println("Waiting for events..")
 	log.Printf("%-16s %-16s %-16s %-6s -> %-16s %-6s",
-		"TS",
+		"LEN",
 		"Event",
 		"Src addr",
 		"Port",
@@ -108,7 +118,7 @@ func (p *TcCapture_Probe) Start() {
 			}
 
 			log.Printf("%-16d %-16s %-16s %-6d -> %-16s %-6d",
-				event.Ts,
+				event.Len,
 				tcType[int(event.Ingress)],
 				intToIP(event.Sip),
 				event.Sport,
@@ -119,76 +129,51 @@ func (p *TcCapture_Probe) Start() {
 
 }
 
-func (p *TcCapture_Probe) createNetLink(ifIndex int) {
-
-	netLink, err := tc.Open(&tc.Config{})
-	if err != nil {
-		log.Fatalf("opening tc failed: %s", err)
+func replaceQdisc(link netlink.Link) error {
+	attrs := netlink.QdiscAttrs{
+		LinkIndex: link.Attrs().Index,
+		Handle:    netlink.MakeHandle(0xffff, 0),
+		Parent:    netlink.HANDLE_CLSACT,
 	}
-	p.netLink = netLink
 
+	qdisc := &netlink.GenericQdisc{
+		QdiscAttrs: attrs,
+		QdiscType:  "clsact",
+	}
+
+	return netlink.QdiscReplace(qdisc)
 }
 
-func (p *TcCapture_Probe) attachTC(ifIndex int, fd int, sec string, trafficType TrafficType) *tc.Object {
-	// Create a Qdisc for the provided interface
-	qdisc := &tc.Object{
-		Msg: tc.Msg{
-			Family:  unix.AF_UNSPEC,
-			Ifindex: uint32(ifIndex),
-			Handle:  core.BuildHandle(tc.HandleRoot, 0x0000),
-			Parent:  tc.HandleIngress,
-			Info:    0,
-		},
-		Attribute: tc.Attribute{
-			Kind: "clsact",
-		},
+func (p *TcCapture_Probe) attachTC(link netlink.Link, prog *ebpf.Program, progName string, qdiscParent uint32) (*netlink.BpfFilter, error) {
+	if err := replaceQdisc(link); err != nil {
+		return nil, fmt.Errorf("replacing clsact qdisc for interface %s: %w", link.Attrs().Name, err)
 	}
 
-	// Add the Qdisc
-	err := p.netLink.Qdisc().Add(qdisc)
-	if err != nil {
-		if err.Error() != "netlink receive: file exists" {
-			log.Fatalf("add qdisc failed: %s", err)
-		}
-	}
-
-	// Create qdisc filter
-	pfd := uint32(fd)
-	flag := uint32(1)
-	filter := tc.Object{
-		Msg: tc.Msg{
-			Family:  unix.AF_UNSPEC,
-			Ifindex: uint32(ifIndex),
-			Handle:  0,
-			Parent:  core.BuildHandle(tc.HandleRoot, uint32(trafficType)),
-			Info:    0x300,
+	filter := &netlink.BpfFilter{
+		FilterAttrs: netlink.FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    qdiscParent,
+			Handle:    1,
+			Protocol:  unix.ETH_P_ALL,
+			Priority:  1,
 		},
-		Attribute: tc.Attribute{
-			Kind: "bpf",
-			BPF: &tc.Bpf{
-				FD:    &pfd,
-				Name:  &sec,
-				Flags: &flag,
-			},
-		},
+		Fd:           prog.FD(),
+		Name:         fmt.Sprintf("%s-%s", progName, link.Attrs().Name),
+		DirectAction: true,
 	}
 
-	// Add qdisc filter
-	err = p.netLink.Filter().Add(&filter)
-	if err != nil {
-		log.Fatalf("add filter to net interface failed: %s", err)
-
+	if err := netlink.FilterReplace(filter); err != nil {
+		return nil, fmt.Errorf("replacing tc filter: %w", err)
 	}
 
-	return qdisc
+	return filter, nil
 }
 
 func (p *TcCapture_Probe) Stop() {
 	p.bpf.Close()
-	p.netLink.Qdisc().Delete(p.tcIngressObj)
-	p.netLink.Qdisc().Delete(p.tcEgressObj)
-	p.netLink.Close()
 	p.reader.Close()
+	netlink.FilterDel(p.ingressFileter)
+	netlink.FilterDel(p.egressFileter)
 }
 
 // intToIP converts IPv4 number to net.IP

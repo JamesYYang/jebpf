@@ -1,6 +1,7 @@
 CLANG ?= clang-12
-CFLAGS := '-O2 -g -Wall -Werror $(CFLAGS)'
-TARGETS ?= amd64
+#CFLAGS := '-O2 -g -Wall -Werror -c $(CFLAGS)'
+CFLAGS := '-O2 -g -c $(CFLAGS)'
+TARGETS ?= bpf
 HEADERS ?= ./ebpf/headers
 
 all: probe-hello probe-openat probe-tcpstate probe-tcpretrans probe-tccapture build

@@ -36,6 +36,7 @@
 
 #define ETH_HLEN sizeof(struct ethhdr)
 #define IP_HLEN sizeof(struct iphdr)
+#define TCP_HLEN sizeof(struct tcphdr)
 #define UDP_HLEN sizeof(struct udphdr)
 #define DNS_HLEN sizeof(struct dns_hdr)
 #define ctx_ptr(field) (void *)(long)(field)

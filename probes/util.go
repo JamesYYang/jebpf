@@ -8,25 +8,27 @@ import (
 )
 
 var localIP = ""
-var localIFace = 0
+var localIFIndex = 0
+var localIFName = ""
 
-func GetLocalIP() (string, int) {
+func GetLocalIP() (string, int, string) {
 	if localIP != "" {
-		return localIP, localIFace
+		return localIP, localIFIndex, localIFName
 	}
-	addrs, iface, err := getLocalNetAddrs()
+	addrs, iface, iname, err := getLocalNetAddrs()
 	if err != nil {
 		log.Printf("get local ip addr error: %s", err)
 	}
-	localIFace = iface
+	localIFIndex = iface
+	localIFName = iname
 	localIP = addrs
-	return localIP, iface
+	return localIP, iface, iname
 }
 
-func getLocalNetAddrs() (string, int, error) {
+func getLocalNetAddrs() (ipStr string, iIndex int, iName string, err error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return "", 0, err
+		return
 	}
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 {
@@ -46,9 +48,10 @@ func getLocalNetAddrs() (string, int, error) {
 			continue
 		}
 
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return "", 0, err
+		addrs, ierr := iface.Addrs()
+		if ierr != nil {
+			err = ierr
+			return
 		}
 
 		for _, addr := range addrs {
@@ -70,13 +73,15 @@ func getLocalNetAddrs() (string, int, error) {
 				continue // 不是ipv4地址，放弃
 			}
 
-			ipStr := ip.String()
+			ipStr = ip.String()
 			if isIntranet(ipStr) {
-				return ipStr, iface.Index, nil
+				iIndex = iface.Index
+				iName = iface.Name
+				return
 			}
 		}
 	}
-	return "", 0, nil
+	return
 }
 
 func isIntranet(ipStr string) bool {
