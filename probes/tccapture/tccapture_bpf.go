@@ -12,15 +12,17 @@ import (
 )
 
 type tccaptureNetPacketEvent struct {
-	Ts      uint64
-	Len     uint32
-	Ifindex uint32
-	Sip     uint32
-	Dip     uint32
-	Sport   uint16
-	Dport   uint16
-	Ingress uint16
-	_       [2]byte
+	Ts       uint64
+	Len      uint32
+	Mark     uint32
+	Ifindex  uint32
+	Protocol uint32
+	Sip      uint32
+	Dip      uint32
+	Sport    uint16
+	Dport    uint16
+	Ingress  uint16
+	_        [2]byte
 }
 
 // loadTccapture returns the embedded CollectionSpec for tccapture.

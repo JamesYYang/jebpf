@@ -88,9 +88,12 @@ func (p *TcCapture_Probe) Start() {
 	p.reader = rd
 
 	log.Println("Waiting for events..")
-	log.Printf("%-16s %-16s %-16s %-6s -> %-16s %-6s",
-		"LEN",
-		"Event",
+	log.Printf("%-10s %-10s %-10s %-10s %-10s %-16s %-6s -> %-16s %-6s",
+		"Ifindex",
+		"Protocol",
+		"Mark",
+		"Len",
+		"Direction",
 		"Src addr",
 		"Port",
 		"Dest addr",
@@ -117,7 +120,10 @@ func (p *TcCapture_Probe) Start() {
 				continue
 			}
 
-			log.Printf("%-16d %-16s %-16s %-6d -> %-16s %-6d",
+			log.Printf("%-10d %-10d %-10d %-10d %-10s %-16s %-6d -> %-16s %-6d",
+				event.Ifindex,
+				event.Protocol,
+				event.Mark,
 				event.Len,
 				tcType[int(event.Ingress)],
 				intToIP(event.Sip),

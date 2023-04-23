@@ -9,7 +9,9 @@ struct net_packet_event
 {
     u64 ts;
     u32 len;
+    u32 mark;
     u32 ifindex;
+    u32 protocol;
     u32 sip;   // 源IP
     u32 dip;   // 目的IP
     u16 sport; // 源端口
@@ -52,10 +54,11 @@ static inline int capture_packets(struct __sk_buff *skb, u16 is_ingress)
     // IP headers
     struct iphdr *iph = (struct iphdr *)(data_start + ETH_HLEN);
     // filter out non-TCP packets
-    if (iph->protocol != IPPROTO_TCP)
-    {
-        return TC_ACT_OK;
-    }
+    // if (iph->protocol != IPPROTO_TCP)
+    // {
+    //     return TC_ACT_OK;
+    // }
+    //
 
     struct tcphdr *tcp = (struct tcphdr *)(data_start + ETH_HLEN + IP_HLEN);
     if (tcp->source == bpf_htons(22) || tcp->dest == bpf_htons(22))
@@ -71,8 +74,10 @@ static inline int capture_packets(struct __sk_buff *skb, u16 is_ingress)
     }
     pkt->ts = bpf_ktime_get_ns();
     pkt->len = skb->len;
+    pkt->mark = skb->mark;
     pkt->ifindex = skb->ifindex;
     pkt->ingress = is_ingress;
+    pkt->protocol = iph->protocol;
     pkt->dip = iph->daddr;
     pkt->sip = iph->saddr;
     pkt->dport = bpf_ntohs(tcp->dest);
