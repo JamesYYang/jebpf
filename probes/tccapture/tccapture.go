@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net"
+	"strings"
 
 	"github.com/JamesYYang/jebpf/probes"
 	"github.com/cilium/ebpf"
@@ -88,10 +89,11 @@ func (p *TcCapture_Probe) Start() {
 	p.reader = rd
 
 	log.Println("Waiting for events..")
-	log.Printf("%-10s %-10s %-10s %-10s %-10s %-16s %-6s -> %-16s %-6s",
+	log.Printf("%-10s %-10s %-10s %-16s %-10s %-10s %-16s %-6s -> %-16s %-6s",
 		"Ifindex",
 		"Protocol",
 		"Mark",
+		"Flag",
 		"Len",
 		"Direction",
 		"Src addr",
@@ -120,10 +122,11 @@ func (p *TcCapture_Probe) Start() {
 				continue
 			}
 
-			log.Printf("%-10d %-10d %-10d %-10d %-10s %-16s %-6d -> %-16s %-6d",
+			log.Printf("%-10d %-10d %-10d %-16s %-10d %-10s %-16s %-6d -> %-16s %-6d",
 				event.Ifindex,
 				event.Protocol,
 				event.Mark,
+				getFlagString(event),
 				event.Len,
 				tcType[int(event.Ingress)],
 				intToIP(event.Sip),
@@ -187,4 +190,28 @@ func intToIP(ipNum uint32) net.IP {
 	ip := make(net.IP, 4)
 	binary.LittleEndian.PutUint32(ip, ipNum)
 	return ip
+}
+
+func getFlagString(event tccaptureNetPacketEvent) string {
+	fStr := ""
+	if event.Fin == 1 {
+		fStr += "fin|"
+	}
+	if event.Ack == 1 {
+		fStr += "ack|"
+	}
+	if event.Rst == 1 {
+		fStr += "rst|"
+	}
+	if event.Psh == 1 {
+		fStr += "psh|"
+	}
+	if event.Syn == 1 {
+		fStr += "syn|"
+	}
+
+	if strings.HasSuffix(fStr, "|") {
+		return fStr[:strings.LastIndex(fStr, "|")]
+	}
+	return fStr
 }

@@ -22,7 +22,11 @@ type tccaptureNetPacketEvent struct {
 	Sport    uint16
 	Dport    uint16
 	Ingress  uint16
-	_        [2]byte
+	Fin      uint16
+	Syn      uint16
+	Rst      uint16
+	Psh      uint16
+	Ack      uint16
 }
 
 // loadTccapture returns the embedded CollectionSpec for tccapture.

@@ -17,6 +17,11 @@ struct net_packet_event
     u16 sport; // 源端口
     u16 dport; // 目的端口
     u16 ingress;
+    u16 fin;
+    u16 syn;
+    u16 rst;
+    u16 psh;
+    u16 ack;
 };
 
 /* BPF ringbuf map */
@@ -82,6 +87,11 @@ static inline int capture_packets(struct __sk_buff *skb, u16 is_ingress)
     pkt->sip = iph->saddr;
     pkt->dport = bpf_ntohs(tcp->dest);
     pkt->sport = bpf_ntohs(tcp->source);
+    pkt->fin = tcp->fin;
+    pkt->rst = tcp->rst;
+    pkt->syn = tcp->syn;
+    pkt->psh = tcp->psh;
+    pkt->ack = tcp->ack;
 
     bpf_ringbuf_submit(pkt, 0);
 
