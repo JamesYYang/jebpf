@@ -55,7 +55,7 @@ func (p *TcpState_Probe) Start() {
 	p.reader = rd
 
 	log.Println("Waiting for events..")
-	log.Printf("%-16s %-16s %-16s %-6s -> %-16s %-6s",
+	log.Printf("%-20s %-16s %-16s %-6s -> %-16s %-6s\n",
 		"Comm",
 		"Event",
 		"Src addr",
@@ -84,7 +84,7 @@ func (p *TcpState_Probe) Start() {
 				continue
 			}
 
-			log.Printf("%-16s %-16s %-16s %-6d -> %-16s %-6d",
+			log.Printf("%-20s %-16s %-16s %-6d -> %-16s %-6d\n",
 				event.Comm,
 				events[int(event.Event)],
 				intToIP(event.Saddr),
