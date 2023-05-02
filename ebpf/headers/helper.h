@@ -40,6 +40,7 @@
 #define UDP_HLEN sizeof(struct udphdr)
 #define DNS_HLEN sizeof(struct dns_hdr)
 #define ctx_ptr(field) (void *)(long)(field)
+#define CAP_OPT_NOAUDIT 0b10
 
 struct net_tcp_event
 {

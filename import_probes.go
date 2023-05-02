@@ -5,5 +5,6 @@ import (
 	// _ "github.com/JamesYYang/jebpf/probes/openat"
 	// _ "github.com/JamesYYang/jebpf/probes/tcpreset"
 	// _ "github.com/JamesYYang/jebpf/probes/tcpretrans"
-	_ "github.com/JamesYYang/jebpf/probes/tcpstate"
+	// _ "github.com/JamesYYang/jebpf/probes/tcpstate"
+	_ "github.com/JamesYYang/jebpf/probes/capable"
 )
